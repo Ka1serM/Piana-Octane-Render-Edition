@@ -1334,7 +1334,6 @@ def import_umap(settings: Settings, umap_data: dict, umap_name: str):
 
             light_data = bpy.data.lights.new(name=light_name, type=light_type)
             light_object = bpy.data.objects.new(name=light_name, object_data=light_data)
-            light_object.delta_rotation_euler = (0.0, radians(-90.0), radians(-90.0))  # still broken??
             lights_collection.objects.link(light_object)
 
             for prop_name, prop_value in light_props.items():
@@ -1377,7 +1376,7 @@ def import_umap(settings: Settings, umap_data: dict, umap_name: str):
                     if "OuterConeAngle" == prop_name:
                         light_object.data.spot_size = radians(prop_value)
 
-            set_properties(byo=light_object, object=light_props)
+            set_properties(byo=light_object, object=light_props, is_light=True)
 
     if len(decals_collection.objects) <= 0:
         bpy.data.collections.remove(decals_collection)
