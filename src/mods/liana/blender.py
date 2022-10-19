@@ -1,7 +1,8 @@
 import bpy
 import os
 import logging
-from math import radians
+import mathutils
+from math import *
 from ...utils.common import setup_logger
 
 logger = setup_logger(__name__)
@@ -137,10 +138,43 @@ def remove_master_objects():
         if block.hide_viewport == True and block.hide_render == True:
             bpy.data.objects.remove(block)
 
+def game_to_blender_rotations(x, y, z):
+    """
+    Unreal to Blender rotations
+    rotation conversion by hatsune miku
+    POGGERS CODE WAOOOO
+    """
+
+    def quaternion_to_euler(quaternion):
+        w, y, x, z = quaternion
+        roll = atan2(2 * (w*x + y*z), 1 - 2 * (x*x + y*y))
+        pitch = asin(2 * (w*y - z*x))
+        yaw = atan2(2 * (w*z + x*y), 1 - 2 * (y*y + z*z))
+        return(roll, pitch, yaw)
+    
+    # lol do this because
+    euler = mathutils.Euler((
+        radians(x),
+        radians(y),
+        radians(z)
+    ))
+
+    quat = euler.to_quaternion()
+
+    # do a little trolling
+    quat = mathutils.Quaternion([quat.w, quat.x, quat.y, -quat.z])
+
+    x, y, z = quaternion_to_euler(quat)
+
+    x = degrees(-x) - 90
+    y = degrees(-y)
+    z = degrees(z) - 270
+    
+    return mathutils.Euler((radians(x), radians(y), radians(z)))
 
 # ANCHOR : Property Controls
 
-def set_properties(byo: bpy.types.Object, object: dict, is_instanced: bool = False):
+def set_properties(byo: bpy.types.Object, object: dict, is_instanced: bool = False, is_light: bool = False):
     if is_instanced:
         transform = object["TransformData"]
         if "Rotation" in transform:
@@ -177,6 +211,21 @@ def set_properties(byo: bpy.types.Object, object: dict, is_instanced: bool = Fal
                 radians(-object["RelativeRotation"]["Pitch"]),
                 radians(-object["RelativeRotation"]["Yaw"])
             ]
+        if "RelativeScale3D" in object:
+            byo.scale = [
+                object["RelativeScale3D"]["X"],
+                object["RelativeScale3D"]["Y"],
+                object["RelativeScale3D"]["Z"]
+            ]
+
+    if is_light:
+        if "RelativeRotation" in object:
+            byo.rotation_mode = 'XYZ'
+            byo.rotation_euler = game_to_blender_rotations(
+                object["RelativeRotation"]["Roll"],
+                object["RelativeRotation"]["Pitch"],
+                object["RelativeRotation"]["Yaw"]
+            )
         if "RelativeScale3D" in object:
             byo.scale = [
                 object["RelativeScale3D"]["X"],
