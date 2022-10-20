@@ -148,7 +148,7 @@ def game_to_blender_rotations(x, y, z):
     def quaternion_to_euler(quaternion):
         w, y, x, z = quaternion
         roll = atan2(2 * (w*x + y*z), 1 - 2 * (x*x + y*y))
-        pitch = asin(2 * (w*y - z*x))
+        pitch = asin(max(min(2 * (w*y - z*x), 1), -1 ))
         yaw = atan2(2 * (w*z + x*y), 1 - 2 * (y*y + z*z))
         return(roll, pitch, yaw)
     
