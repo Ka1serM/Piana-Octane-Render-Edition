@@ -20,13 +20,14 @@ VCOL_LAYER_KWARGS = {"do_init": False}
 
 if app.version >= (3, 2, 0):
     VCOL_ATTR_NAME = "color_attributes"
-    VCOL_LAYER_KWARGS = {"type": "BYTE_COLOR", "domain": "CORNER"}
+    VCOL_LAYER_KWARGS = {"type": "FLOAT_COLOR", "domain": "POINT"}
 
 
 def set_vcols_on_layer(
     mesh: Mesh,
     vertex_colors: List[Tuple[int, int, int, int]],
-    color_layer_name: str = "Col",
+    color_layer_name: str = "PSKVTXCOL_0",
+    alpha_layer_name: str = "PSKVTXCOL_0_ALPHA",
 ) -> None:
     mesh_cols: Union[AttributeGroup, LoopColors]
     mesh_cols = getattr(mesh, VCOL_ATTR_NAME)
@@ -40,15 +41,29 @@ def set_vcols_on_layer(
         vertex_colors = [
             (*map(color_linear_to_srgb, rgb), a) for *rgb, a in vertex_colors
         ]
-
     color_layer.data.foreach_set(
         "color",
         [
             c
-            for e in [vertex_colors[loop.vertex_index] for loop in mesh.loops]
-            for c in e
+            for v in mesh.vertices
+            for c in vertex_colors[v.index]
         ],
     )
+    alpha_layer = mesh_cols.new(name=alpha_layer_name, **VCOL_LAYER_KWARGS)
+    vertex_alpha = [
+        (a, a, a, a) for (_, _, _, a) in vertex_colors
+    ]
+    alpha_layer.data.foreach_set(
+        "color",
+        [
+            a
+            for v in mesh.vertices
+            for a in vertex_alpha[v.index]
+        ],
+    )
+
+
+
 
 
 def color_linear_to_srgb(c: float) -> float:

@@ -3,8 +3,7 @@ import os
 import subprocess
 import bpy
 
-from bpy.types import Mesh, ShaderNodeVertexColor
-
+from bpy.types import Mesh
 from contextlib import redirect_stdout
 from sys import stdout
 from io import StringIO
@@ -28,16 +27,16 @@ SELECTIVE_OBJECTS = []
 SELECTIVE_UMAP = [
     # "Pitt_Art_VFX"
     # "Ascent_Art_A",
-    # "Ascent_Art_APathMid",
+    #"Ascent_Art_APathMid",
     # "Ascent_Art_Atk",
     # "Ascent_Art_AtkPathA",
     # "Ascent_Art_AtkPathB",
     # "Ascent_Art_B",
-    # "Ascent_Art_Def",
-    # "Ascent_Art_DefPathA",
-    # "Ascent_Art_DefPathB",
+    #"Ascent_Art_Def",
+    #"Ascent_Art_DefPathA",
+    #"Ascent_Art_DefPathB",
     # "Ascent_Art_Env_VFX",
-    # "Ascent_Art_Mid",
+    #"Ascent_Art_Mid",
     # "Ascent_Art_Vista",
     # "Ascent_Art_VistaA",
     # "Ascent_Art_VistaAtk",
@@ -240,7 +239,6 @@ def get_map_assets(settings: Settings):
 
     return umaps
 
-
 # TODO : MATERIALS
 
 def set_materials(settings: Settings, byo: bpy.types.Object, map_object: MapObject, decal: bool = False):
@@ -321,22 +319,19 @@ def set_materials(settings: Settings, byo: bpy.types.Object, map_object: MapObje
 
 # SECTION : Set Material
 
-
 def set_material(settings: Settings, mat: bpy.types.Material, mat_data: dict, override: bool = False, decal: bool = False, object_cls: MapObject = None, object_byo: bpy.types.Object = None):
 
     mat.use_nodes = True
 
+
+
+    # define shits
     # define shits
     nodes = mat.node_tree.nodes
     link = mat.node_tree.links.new
     create_node = nodes.new
 
     obj_data = object_byo.data
-
-    # if obj_data.vertex_colors:
-    #     mat.name = mat_data["Name"] + "_V"
-    # else:
-    #     mat.name = mat_data["Name"] + "_NV"
 
     if "Properties" not in mat_data:
         return
@@ -358,42 +353,13 @@ def set_material(settings: Settings, mat: bpy.types.Material, mat_data: dict, ov
     # Clear Nodes
     clear_nodes(nodes)
 
-    N_NOTE = create_node_note(nodes, mat_type)
     N_OUTPUT = nodes['Material Output']
 
     # EnvCollision
     if "EnvCollision_MAT" in mat_type:
         bpy.data.objects.remove(object_byo)
 
-    # if obj_data.vertex_colors:
-    N_VERTEX: ShaderNodeVertexColor = nodes.get("Vertex Color")
-    if N_VERTEX is None:
-        N_VERTEX = create_node(type="ShaderNodeVertexColor")
-        N_VERTEX.layer_name = "Col"
-        N_VERTEX.name = "Vertex Color"
-
-    note_textures_normal = create_node_note(nodes, "Textures : Normal")
-    note_textures_override = create_node_note(nodes, "Textures : Override")
-    note_textures_cached = create_node_note(nodes, "Textures : Cached")
-
-    note_textures_normal.width = 240
-    note_textures_override.width = 240
-    note_textures_cached.width = 240
-
-    note_textures_normal.label_size = 15
-    note_textures_override.label_size = 15
-    note_textures_cached.label_size = 15
-
-    set_node_position(note_textures_normal, -700, 60)
-    set_node_position(note_textures_override, -1000, 60)
-    set_node_position(note_textures_cached, -1300, 60)
-
-    set_node_position(N_NOTE, -350, 230)
-    set_node_position(N_OUTPUT, 300, 0)
-    set_node_position(N_VERTEX, -600, 180)
-
     N_SHADER = nodes.new("ShaderNodeGroup")
-    N_SHADER.width = 200
     N_MAPPING = None
 
     # Pre Overrides
@@ -479,10 +445,7 @@ def set_material(settings: Settings, mat: bpy.types.Material, mat_data: dict, ov
         "0_VentSmoke"
     ]
 
-
     MaterialTypes.append(mat_type)
-
-    #nodes_textures = get_textures(settings=settings, mat=mat, override=override, mat_props=mat_props, shader=N_SHADER) MOVED DOWN
 
     blend_mode = BlendMode.OPAQUE
 
@@ -490,110 +453,27 @@ def set_material(settings: Settings, mat: bpy.types.Material, mat_data: dict, ov
     mat_colors = {}
     mat_shading_model = "MSM_AresEnvironment"
 
-    # SECTION : Select Shader
-
-    user_mat_type = mat_type
-        
+    
     if mat_type in types_decal:
         N_SHADER.node_tree = get_valorant_shader(group_name="VALORANT_Decal")
-        link(N_SHADER.outputs["BSDF"], N_OUTPUT.inputs["Surface"])
-
-    elif mat_type in types_hologram:
-        N_SHADER.node_tree = get_valorant_shader(group_name="VALORANT_Hologram")
-        link(N_SHADER.outputs["Emission"], N_OUTPUT.inputs["Surface"])
-
-    elif mat_type in types_lightshift:
-        N_SHADER.node_tree = get_valorant_shader(group_name="VALORANT_Lightshift")
-        link(N_SHADER.outputs["BSDF"], N_OUTPUT.inputs["Surface"])
-        N_MAPPING = nodes.new("ShaderNodeGroup")
-        N_MAPPING.width = 200
-        N_MAPPING.node_tree = get_valorant_shader(group_name="VALORANT_W/V_Mapping")
-        set_node_position(N_MAPPING, -1600, 0)
-
-    elif mat_type in types_screen or "LCD" in mat.name or "Terminal" in mat.name:
-        N_SHADER.node_tree = get_valorant_shader(group_name="VALORANT_Screen")
-        N_SHADER.inputs["Emission Strength"].default_value = 5
-        link(N_SHADER.outputs["Shader"], N_OUTPUT.inputs["Surface"])
-
-    # elif mat_type in types_glass or "Glass" in mat.name:
-    #     N_SHADER.node_tree = get_valorant_shader(group_name="VALORANT_Base")
-    #     link(N_SHADER.outputs["BSDF"], N_OUTPUT.inputs["Surface"])
-    #     if "GlassShardGlowMint" not in mat.name:
-    #         user_mat_type = "Glass"
-
+        
     elif"Blend" in mat_type:
-        N_SHADER.node_tree = get_valorant_shader(group_name="VALORANT_Blend")
-
-        N_SHADER.inputs["Vertex Controls"].display_shape = "DIAMOND_DOT"
-        N_SHADER.inputs["A - Value Inputs"].display_shape = "DIAMOND_DOT"
-        N_SHADER.inputs["A - Texture Inputs"].display_shape = "DIAMOND_DOT"
-        N_SHADER.inputs["A - Color Inputs"].display_shape = "DIAMOND_DOT"
-        N_SHADER.inputs["B - Value Inputs"].display_shape = "DIAMOND_DOT"
-        N_SHADER.inputs["B - Texture Inputs"].display_shape = "DIAMOND_DOT"
-        N_SHADER.inputs["B - Color Inputs"].display_shape = "DIAMOND_DOT"
-
-        link(N_SHADER.outputs["BSDF"], N_OUTPUT.inputs["Surface"])
+        N_SHADER.node_tree = get_valorant_shader(group_name="VALORANT_Blend") #VALORANT_Blend
         user_mat_type = "Blend"
 
-    elif mat_type in types_glass:
-        N_SHADER.node_tree = get_valorant_shader(group_name="VALORANT_Base")
-        N_SHADER.inputs["Roughness"].default_value = 0.2
-        N_SHADER.inputs["Specular"].default_value = 0.2
-        link(N_SHADER.outputs["BSDF"], N_OUTPUT.inputs["Surface"])
-        mat.use_screen_refraction = True
-
-    elif mat_type in types_emissive:
-        N_SHADER.node_tree = get_valorant_shader(group_name="VALORANT_Base")
-        N_SHADER.inputs["Emission Strength"].default_value = 3
-        link(N_SHADER.outputs["BSDF"], N_OUTPUT.inputs["Surface"])
-
-    elif mat_type in types_emissive_scroll:
-        N_SHADER.node_tree = get_valorant_shader(group_name="VALORANT_Emissive_Scroll")
-        N_SHADER.inputs["Emission Strength"].default_value = 5
-        link(N_SHADER.outputs["Shader"], N_OUTPUT.inputs["Surface"])
-
-    elif mat_type in types_spriteglow:
-        N_SHADER.node_tree = get_valorant_shader(group_name="VALORANT_SpriteGlow")
-        link(N_SHADER.outputs["BSDF"], N_OUTPUT.inputs["Surface"])
-
-    elif mat_type in types_waterfallvista:
-        N_SHADER.node_tree = get_valorant_shader(group_name="VALORANT_Waterfall")
-        link(N_SHADER.outputs["BSDF"], N_OUTPUT.inputs["Surface"])
-        N_MAPPING = nodes.new("ShaderNodeGroup")
-        N_MAPPING.width = 200
-        N_MAPPING.node_tree = get_valorant_shader(group_name="VALORANT_Waterfall_Mapping")
-        set_node_position(N_MAPPING, -1600, 0)
-        user_mat_type = "Waterfallvista"
-
-    elif mat_type in types_ventsmoke:
-        N_SHADER.node_tree = get_valorant_shader(group_name="VALORANT_Ventsmoke")
-        link(N_SHADER.outputs["BSDF"], N_OUTPUT.inputs["Surface"])
-        N_MAPPING = nodes.new("ShaderNodeGroup")
-        N_MAPPING.width = 200
-        N_MAPPING.node_tree = get_valorant_shader(group_name="VALORANT_Ventsmoke_Mapping")
-        set_node_position(N_MAPPING, -1600, 0)
-    
     elif mat_type == "NO PARENT":
         if "Sky" not in mat.name:
             N_SHADER.node_tree = get_valorant_shader(group_name="VALORANT_Base")
-            link(N_SHADER.outputs["BSDF"], N_OUTPUT.inputs["Surface"])
         elif "Sky" in mat.name:
             N_SHADER.node_tree = get_valorant_shader(group_name="VALORANT_Skybox")
-            link(N_SHADER.outputs["Shader"], N_OUTPUT.inputs["Surface"])
-
     elif mat_type in types_base:
         N_SHADER.node_tree = get_valorant_shader(group_name="VALORANT_Base")
-        link(N_SHADER.outputs["BSDF"], N_OUTPUT.inputs["Surface"])
-
     else:
         N_SHADER.node_tree = get_valorant_shader(group_name="VALORANT_Base")
-        N_SHADER.inputs["DF"].default_value = (1, 0, 0, 1)
-        link(N_SHADER.outputs["BSDF"], N_OUTPUT.inputs["Surface"])
-        return
+    #link shader output to Mat
+    link(N_SHADER.outputs[0], N_OUTPUT.inputs[0])
 
-    nodes_textures = get_textures(settings=settings, mat=mat, override=override, mat_props=mat_props, shader=N_SHADER, mapping=N_MAPPING)
-    # !SECTION
-
+    # BASE PROPERTY OVERRIDES
     if "BasePropertyOverrides" in mat_props:
         for prop_name, prop_value in mat_props["BasePropertyOverrides"].items():
 
@@ -606,8 +486,6 @@ def set_material(settings: Settings, mat: bpy.types.Material, mat_data: dict, ov
 
             # ANCHOR Blend Mode
             if "BlendMode" == prop_name:
-                if "Use Alpha" in N_SHADER.inputs:
-                    N_SHADER.inputs["Use Alpha"].default_value = 1
                 if "BLEND_Translucent" in prop_value:
                     blend_mode = BlendMode.BLEND
                 elif "BLEND_Masked" in prop_value:
@@ -620,391 +498,105 @@ def set_material(settings: Settings, mat: bpy.types.Material, mat_data: dict, ov
                     blend_mode = BlendMode.BLEND
                 elif "BLEND_AlphaHoldout" in prop_value:
                     blend_mode = BlendMode.CLIP
-
-            if "OpacityMaskClipValue" == prop_name:
-                mat.alpha_threshold = prop_value
-                pass
-
             # -----------------------------------------------
             # LOGGING
             if prop_name not in BasePropertyOverrides:
                 BasePropertyOverrides[prop_name] = []
             BasePropertyOverrides[prop_name].append(mat_props["BasePropertyOverrides"][prop_name])
             BasePropertyOverrides[prop_name] = list(dict.fromkeys(BasePropertyOverrides[prop_name]))
-
+    # OPACITY
+    if "Alpha" in N_SHADER.inputs:
+        scalar_node = mat.node_tree.nodes.new(type="OctaneGreyscaleColor")
+        scalar_node.label = "Alpha"
+        if blend_mode == BlendMode.CLIP or blend_mode == BlendMode.BLEND:
+            scalar_node.a_value = 0
+        else:
+            scalar_node.a_value = 1
+        #if "Glass" in user_mat_type:
+        #    scalar_node.a_value = 0.5
+        link(scalar_node.outputs[0], N_SHADER.inputs["Alpha"])
+    # VERTEX COLORS
+    if "vertex color" in N_SHADER.inputs:
+        vertex_color_node = mat.node_tree.nodes.new(type="OctaneColorVertexAttribute")
+        vertex_color_node.inputs[0].default_value = "PSKVTXCOL_0"
+        link(vertex_color_node.outputs[0], N_SHADER.inputs["vertex color"])
+    if "vertex alpha" in N_SHADER.inputs:
+        vertex_alpha_node = mat.node_tree.nodes.new(type="OctaneColorVertexAttribute")
+        vertex_alpha_node.inputs[0].default_value = "PSKVTXCOL_0_ALPHA"
+        link(vertex_alpha_node.outputs[0], N_SHADER.inputs["vertex alpha"])
+    #PARAMS
     if "StaticParameters" in mat_props:
         if "StaticSwitchParameters" in mat_props["StaticParameters"]:
             for param in mat_props["StaticParameters"]["StaticSwitchParameters"]:
                 param_name = param["ParameterInfo"]["Name"].lower()
-
-                if "use min light brightness color" in param_name and "Use MLB Color" in N_SHADER.inputs:
-                    if param["Value"]:
-                        N_SHADER.inputs["Use MLB Color"].default_value = 1
-
-                if "blend tint only" in param_name and "Blend Tint Only" in N_SHADER.inputs:
-                    if param["Value"]:
-                        N_SHADER.inputs["Blend Tint Only"].default_value = 1
-
-                if "use 2 diffuse maps" in param_name and "Use 2 DF Maps" in N_SHADER.inputs:
-                    if param["Value"]:
-                        N_SHADER.inputs["Use 2 DF Maps"].default_value = 1
+                if param_name in N_SHADER.inputs:
+                    scalar_node = mat.node_tree.nodes.new(type="OctaneGreyscaleColor")
+                    scalar_node.label = param_name
+                    if (param["Value"] == "true"):
+                        scalar_node.a_value = 1.0
                     else:
-                        N_SHADER.inputs["Use 2 DF Maps"].default_value = 0
+                        scalar_node.a_value = 0.0
+                    link(scalar_node.outputs[0], N_SHADER.inputs[param_name])
 
-                if "use 2 normal maps" in param_name and "Use 2 NM Maps" in N_SHADER.inputs:
-                    if param["Value"]:
-                        N_SHADER.inputs["Use 2 NM Maps"].default_value = 1
-                    else:
-                        N_SHADER.inputs["Use 2 NM Maps"].default_value = 0
-
-                if "use alpha power" in param_name and "Use Alpha Power" in N_SHADER.inputs:
-                    if param["Value"]:
-                        N_SHADER.inputs["Use Alpha Power"].default_value = 1
-
-                if "invert alpha (texture)" in param_name and "Invert Alpha" in N_SHADER.inputs:
-                    if param["Value"]:
-                        N_SHADER.inputs["Invert Alpha"].default_value = 1
-
-                if "use diffuse b alpha" in param_name and "Use B Alpha" in N_SHADER.inputs:
-                    if param["Value"]:
-                        N_SHADER.inputs["Use B Alpha"].default_value = 1
-
-                if "use vertex color" in param_name:
-                    if getattr(obj_data, VCOL_ATTR_NAME):
-                        mat_switches.append(param_name)
-                        if "Vertex Color" in N_SHADER.inputs:
-                            link(N_VERTEX.outputs["Color"], N_SHADER.inputs["Vertex Color"])
-                        if "Use Vertex Color" in N_SHADER.inputs:
-                            N_SHADER.inputs["Use Vertex Color"].default_value = 1
-
-                if "use vertex alpha" in param_name:
-                    if getattr(obj_data, VCOL_ATTR_NAME):
-                        mat_switches.append(param_name)
-                        if "Vertex Alpha" in N_SHADER.inputs:
-                            link(N_VERTEX.outputs["Alpha"], N_SHADER.inputs["Vertex Alpha"])
-                        if "Use Vertex Alpha" in N_SHADER.inputs:
-                            N_SHADER.inputs["Use Vertex Alpha"].default_value = 1
-                            N_SHADER.inputs["Use Alpha Power"].default_value = 0
-
-                if "use alpha as emissive" in param_name:
-                    mat_switches.append("use alpha as emissive")
-                    if "Use Alpha as Emissive" in N_SHADER.inputs:
-                        N_SHADER.inputs["Use Alpha as Emissive"].default_value = 1
-                    else:
-                        pass
                 # LOGGING
-                StaticParameterValues.append(param['ParameterInfo']['Name'].lower())
+                StaticParameterValues.append(param_name)
 
         if "StaticComponentMaskParameters" in mat_props["StaticParameters"]:
             for param in mat_props["StaticParameters"]["StaticComponentMaskParameters"]:
                 param_name = param["ParameterInfo"]["Name"].lower()
-                if param_name == "mask":
-                    # MASK = "R"
-                    colors = {"R", "G", "B", "A"}
-                    for color in colors:
-                        if color in param:
-                            if param[color]:
-                                if f"Use {color}" in N_SHADER.inputs:
-                                    N_SHADER.inputs[f"Use {color}"].default_value = 1
+                if param_name in N_SHADER.inputs:
+                    if param_name == "mask":
+                        colors = {"R", "G", "B", "A"}
+                        for color in colors:
+                            if color in param:
+                                if param[color]:
+                                    scalar_node = mat.node_tree.nodes.new(type="OctaneGreyscaleColor")
+                                    scalar_node.label = f"Use {color}"
+                                    scalar_node.a_value = 1
+                                    link(scalar_node.outputs[0], N_SHADER.inputs[f"Use {color} for {param_name}"])
 
     if "ScalarParameterValues" in mat_props:
+        pos = [-300, 0]
+        index = 0
         for param in mat_props["ScalarParameterValues"]:
             param_name = param['ParameterInfo']['Name'].lower()
-
-            if "metallic" in param_name and "Metallic Strength" in N_SHADER.inputs:
-                N_SHADER.inputs["Metallic Strength"].default_value = param["ParameterValue"]
-
-            if "alpha" in param_name and "Alpha Strength" in N_SHADER.inputs:
-                N_SHADER.inputs["Alpha Strength"].default_value = param["ParameterValue"]
-
-            if "emissive_base_power" in param_name and "Emissive_Base_Power" in N_SHADER.inputs:
-                N_SHADER.inputs["Emissive_Base_Power"].default_value = param["ParameterValue"]
-
-            if "mask blend power" in param_name and "Vertex Blend" in N_SHADER.inputs:
-                N_SHADER.inputs["Vertex Blend"].default_value = param["ParameterValue"]
-
-            if "disolve_u_scale" in param_name and "U" in N_MAPPING.inputs:
-                N_MAPPING.inputs["U"].default_value = param["ParameterValue"]
-
-            if "disolve_v_scale" in param_name and "V" in N_MAPPING.inputs:
-                N_MAPPING.inputs["V"].default_value = param["ParameterValue"]
-
-            if "opacity (main)" in param_name and "Opacity (Main)" in N_SHADER.inputs:
-                N_SHADER.inputs["Opacity (Main)"].default_value = param["ParameterValue"]
-
-            if "alpha1_power" in param_name and "Alpha1_Power" in N_SHADER.inputs:
-                N_SHADER.inputs["Alpha1_Power"].default_value = param["ParameterValue"]
-
-            if "alpha_colormult" in param_name and "Alpha_ColorMult" in N_SHADER.inputs:
-                N_SHADER.inputs["Alpha_ColorMult"].default_value = param["ParameterValue"]
-
-            if "alpha_base_power" in param_name and "Alpha_Base_Power" in N_SHADER.inputs:
-                N_SHADER.inputs["Alpha_Base_Power"].default_value = param["ParameterValue"]
-
-            if N_MAPPING:
-                if "alpha_offsetv" in param_name and "Offset V" in N_MAPPING.inputs:
-                    N_MAPPING.inputs["Offset V"].default_value = param["ParameterValue"]
-
-            if N_MAPPING:
-                if "alpha_scalev" in param_name and "Size V" in N_MAPPING.inputs:
-                    N_MAPPING.inputs["Size V"].default_value = param["ParameterValue"]
-
-            # if "roughness mult" in param_name and "Roughness Strength" in N_SHADER.inputs:
-            #     # print(param_name, param["ParameterValue"] * 0.1)
-            #     N_SHADER.inputs["Roughness Strength"].default_value = param["ParameterValue"]
-            if "min light brightness" in param_name:
-                pass
-                # print(param["ParameterValue"])
-                # print()
-                # N_SHADER.inputs["Emission Strength"].default_value = param["ParameterValue"]
-
-            if "normal" in param_name and "Normal Strength" in N_SHADER.inputs:
-                N_SHADER.inputs["Normal Strength"].default_value = param["ParameterValue"]
-
+            if param_name in N_SHADER.inputs:
+                scalar_node = mat.node_tree.nodes.new(type="OctaneGreyscaleColor")
+                if (param_name == "mask blend power" or param_name == "normal mask blend power"):
+                    scalar_node.a_value = param["ParameterValue"]/100
+                else:
+                    scalar_node.a_value = param["ParameterValue"]
+                scalar_node.label = param_name
+                pos[1] = index * -100
+                index += 1
+                scalar_node.location[0] = pos[0]
+                scalar_node.location[1] = pos[1]
+                link(scalar_node.outputs[0], N_SHADER.inputs[param_name])
             # LOGGING
             ScalarParameterValues.append(param_name)
 
     if "VectorParameterValues" in mat_props:
-        color_pos_x = -700
-        color_pos_y = 470
+        pos = [-600, 0]
+        index = 0
         for param in mat_props["VectorParameterValues"]:
             param_name = param['ParameterInfo']['Name'].lower()
-            param_value = param["ParameterValue"]
+            if param_name in N_SHADER.inputs:
+                param_value = param["ParameterValue"]
+                color_node = nodes.new(type="OctaneRGBColor")
+                color_node.a_value = get_rgb_no_alpha(param_value)
+                color_node.label = param_name
+                pos[1] = index * -100
+                index += 1
+                color_node.location[0] = pos[0]
+                color_node.location[1] = pos[1]
+                link(color_node.outputs[0], N_SHADER.inputs[param_name])
+            # LOGGING
+            VectorParameterValues.append(param_name)
 
-            yo = create_node_color(nodes, param_name, get_rgb(param_value), color_pos_x, color_pos_y)
-            color_pos_x += 200
-
-            if "color" in param_name:
-                if "Color" in N_SHADER.inputs:
-                    N_SHADER.inputs["Color"].default_value = get_rgb(param_value)
-
-            if "diffusecolor" in param_name:
-                if "Diffuse Color" in N_SHADER.inputs:
-                    N_SHADER.inputs["Diffuse Color"].default_value = get_rgb(param_value)
-
-            if "ao color" in param_name:
-                if "AO Color" in N_SHADER.inputs:
-                    N_SHADER.inputs["AO Color"].default_value = get_rgb(param_value)
-
-            if "lightmass-only vertex color" in param_name:
-                if "VC" in N_SHADER.inputs:
-                    N_SHADER.inputs["VC"].default_value = get_rgb(param_value)
-
-            if "emissive mult" in param_name:
-                if "Emissive Mult" in N_SHADER.inputs:
-                    N_SHADER.inputs["Emissive Mult"].default_value = get_rgb(param_value)
-
-            if "min light brightness color" in param_name:
-                if "ML Brightness" in N_SHADER.inputs:
-                    N_SHADER.inputs["ML Brightness"].default_value = get_rgb(param_value)
-                if "MLB" in N_SHADER.inputs:
-                    N_SHADER.inputs["MLB"].default_value = get_rgb(param_value)
-
-            if "color_1" in param_name:
-                if "Color 1" in N_SHADER.inputs:
-                    N_SHADER.inputs["Color 1"].default_value = get_rgb(param_value)
-
-            if "color_2" in param_name:
-                if "Color 2" in N_SHADER.inputs:
-                    N_SHADER.inputs["Color 2"].default_value = get_rgb(param_value)
-            if "line color" in param_name:
-                if "line color" in N_SHADER.inputs:
-                    N_SHADER.inputs["line color"].default_value = get_rgb(param_value)
-            if "layer a tint" in param_name or "color mult" in param_name or "texture tint a" in param_name:
-                if "Tint" in N_SHADER.inputs:
-                    N_SHADER.inputs["Tint"].default_value = get_rgb(param_value)
-            if "layer b tint" in param_name or "texture tint b" in param_name:
-                if "Tint B" in N_SHADER.inputs:
-                    N_SHADER.inputs["Tint B"].default_value = get_rgb(param_value)
-            VectorParameterValues.append(param['ParameterInfo']['Name'].lower())
-
-    # --------------------------------------------
-    # Set up material using the datas
-
-    mat.blend_method = blend_mode.name
-    mat.shadow_method = 'OPAQUE' if blend_mode.name == 'OPAQUE' else 'HASHED'
-
-    if getattr(obj_data, VCOL_ATTR_NAME):
-        # mat_switches.append(param_name)
-        # if "Use Vertex Color" in N_SHADER.inputs:
-        #     link(N_VERTEX.outputs["Color"], N_SHADER.inputs["Vertex Color"])
-        # mat.name = mat.name + "_V"
-        if "Vertex Color" in N_SHADER.inputs:
-            link(N_VERTEX.outputs["Color"], N_SHADER.inputs["Vertex Color"])
-
-        if "Vertex" in N_SHADER.inputs:
-            link(N_VERTEX.outputs["Color"], N_SHADER.inputs["Vertex"])
-
-        if mat_type == "NO PARENT":
-            if "DF" in N_SHADER.inputs:
-                link(N_VERTEX.outputs["Color"], N_SHADER.inputs["DF"])
-
-        if user_mat_type == "Blend":
-            if "Vertex Color" in N_SHADER.inputs:
-                link(N_VERTEX.outputs["Color"], N_SHADER.inputs["Vertex Color"])
-            if "Vertex Alpha" in N_SHADER.inputs:
-                link(N_VERTEX.outputs["Alpha"], N_SHADER.inputs["Vertex Alpha"])
-
-        if user_mat_type in "Waterfallvista":
-            link(N_VERTEX.outputs["Alpha"], N_SHADER.inputs["Vertex_Alpha"])
-    else:
-        pass
-        # mat.name = mat.name + "_NV"
-
-    # ANCHOR Set up Textures!
-    node_tex: bpy.types.Node
-    for key, node_tex in nodes_textures.items():
-        # print(key, node_tex)
-        if key == "diffuse":
-            if "DF" in N_SHADER.inputs:
-                link(node_tex.outputs["Color"], N_SHADER.inputs["DF"])
-                if blend_mode == BlendMode.CLIP or blend_mode == BlendMode.BLEND:
-                    if "Alpha" in N_SHADER.inputs and user_mat_type != "Glass":
-                        link(node_tex.outputs["Alpha"], N_SHADER.inputs["Alpha"])
-                    if "Glass" in user_mat_type:
-                        N_SHADER.inputs["Alpha"].default_value = 0.5
-
-            if "DF Alpha" in N_SHADER.inputs:
-                link(node_tex.outputs["Alpha"], N_SHADER.inputs["DF Alpha"])
-
-            if "Diffuse" in N_SHADER.inputs:
-                if user_mat_type == "Blend":
-                    link(node_tex.outputs["Color"], N_SHADER.inputs["Diffuse"])
-                    link(node_tex.outputs["Alpha"], N_SHADER.inputs["Diffuse Alpha"])
-                # if blend_mode == BlendMode.CLIP or blend_mode == BlendMode.BLEND:
-                #     if "Alpha" in N_SHADER.inputs and user_mat_type != "Glass":
-                #         link(node_tex.outputs["Alpha"], N_SHADER.inputs["Alpha"])
-
-        if key == "diffuse b" or key == "texture b"  or key == "albedo b":
-            if "DF B" in N_SHADER.inputs and "DF B Alpha" in N_SHADER.inputs:
-                link(node_tex.outputs["Color"], N_SHADER.inputs["DF B"])
-                link(node_tex.outputs["Alpha"], N_SHADER.inputs["DF B Alpha"])
-
-        if key == "mra":
-            if "MRA" in N_SHADER.inputs:
-                link(node_tex.outputs["Color"], N_SHADER.inputs["MRA"])
-        if key == "mra b":
-            if "MRA B" in N_SHADER.inputs:
-                link(node_tex.outputs["Color"], N_SHADER.inputs["MRA B"])
-        if key == "normal":
-            if "NM" in N_SHADER.inputs:
-                link(node_tex.outputs["Color"], N_SHADER.inputs["NM"])
-            if "Normal" in N_SHADER.inputs:
-                link(node_tex.outputs["Color"], N_SHADER.inputs["Normal"])
-
-        if key == "mask":
-            if "RGBA Color" in N_SHADER.inputs:
-                link(node_tex.outputs["Color"], N_SHADER.inputs["RGBA Color"])
-                link(node_tex.outputs["Alpha"], N_SHADER.inputs["RGBA Alpha"])
-            if "Mask" in N_SHADER.inputs:
-                link(node_tex.outputs["Color"], N_SHADER.inputs["Mask"])
-
-        if key == "normal b" and "NM B" in N_SHADER.inputs:
-            link(node_tex.outputs["Color"], N_SHADER.inputs["NM B"])
-
-        if key == "emissive_base":
-            if "LS_Color" in N_SHADER.inputs:
-                link(node_tex.outputs["Color"], N_SHADER.inputs["LS_Color"])
-
-        if key == "alpha_base":
-            if "LS_Alpha" in N_SHADER.inputs:
-                link(node_tex.outputs["Color"], N_SHADER.inputs["LS_Alpha"])
-                node_tex.extension = "EXTEND"
-                N_SHADER.inputs["Cache Switch"].default_value = 1
-                if N_MAPPING:
-                    link(N_MAPPING.outputs["Mapping"], node_tex.inputs["Vector"])
-
-        # if key == "mask" or key == "rgba":
-        #     pass
-            # if decal:
-            #     link(node.outputs["Color"], N_SHADER.inputs["Mask"])
-            #     link(node.outputs["Alpha"], N_SHADER.inputs["Alpha"])
-            # elif "Mask" in N_SHADER.inputs and mat_type == "BaseEnvEmissiveLCDScreen_MAT":
-            #     link(node.outputs["Alpha"], N_SHADER.inputs["Mask"])
-
-            #     node_rgb_mapping = nodes.new(type="ShaderNodeMapping")
-            #     node_rgb_uv = nodes.new(type="ShaderNodeUVMap")
-
-            #     blender.set_node_position(node_rgb_mapping, node.location.x - 200, node.location.y)
-            #     blender.set_node_position(node_rgb_uv, node.location.x - 400, node.location.y)
-
-            #     link(node_rgb_uv.outputs["UV"], node_rgb_mapping.inputs["Vector"])
-            #     link(node_rgb_mapping.outputs["Vector"], node.inputs["Vector"])
-
-            #     ut = get_scalar_value(mat_props, "U Tile")
-            #     vt = get_scalar_value(mat_props, "V Tile")
-            #     if ut is not None and vt is not None:
-            #         node_rgb_mapping.inputs["Scale"].default_value = [ut, vt, 1]
-
-            # else:
-            #     # link(node.outputs["Color"], N_SHADER.inputs["Diffuse"])
-            #     if "Alpha" in N_SHADER.inputs:
-            #         link(node.outputs["Alpha"], N_SHADER.inputs["Alpha"])
-
-        # if key == "LCDScreenRGB_TEX":
-        #     if "RGB Texture" in N_SHADER.inputs:
-        #         # Link to
-        #         link(node_tex.outputs["Color"], N_SHADER.inputs["RGB Texture"])
-
-        #         node_rgb_mapping = nodes.new(type="ShaderNodeMapping")
-        #         node_rgb_uv = nodes.new(type="ShaderNodeUVMap")
-
-        #         blender.set_node_position(node_rgb_mapping, node_tex.location.x - 200, node_tex.location.y)
-        #         blender.set_node_position(node_rgb_uv, node_tex.location.x - 400, node_tex.location.y)
-
-        #         link(node_rgb_uv.outputs["UV"], node_rgb_mapping.inputs["Vector"])
-        #         link(node_rgb_mapping.outputs["Vector"], node_tex.inputs["Vector"])
-
-        #         sv = get_scalar_value(mat_props, "RGB Scale")
-        #         if sv is not None:
-        #             node_rgb_mapping.inputs["Scale"].default_value = [sv, sv, sv]
-
-        # if key == "mask" and "Alpha" in N_SHADER.inputs:
-        #     link(node.outputs["Color"], N_SHADER.inputs["Alpha"])
-        # if key == "normal b":
-        #     link(node.outputs["Color"], N_SHADER.inputs["NM_B"])
-        # if key == "albedo":
-        #     link(node.outputs["Color"], N_SHADER.inputs["DF_A"])
-        #     if BLEND_Masked:
-        #         link(node.outputs["Alpha"], N_SHADER.inputs["Alpha"])
-
-    # !SECTION
-    # Custom Overrides
-    if "GlassShardGlow" in mat.name:
-        N_SHADER.inputs["Only Glow"].default_value = 1
-        N_SHADER.inputs["Emission Strength"].default_value = 15
-
-    if "Paint_M0_AsphaltStreetC" in mat.name:
-        N_SHADER.inputs["Vertex Alpha Srgb/Linear"].default_value = 0
-
-    if "Sand_" in mat.name or "SandBlend" in mat.name:
-        if "Sand_Blend" in N_SHADER.inputs:
-            N_SHADER.inputs["Sand_Blend"].default_value = 1
-
-    if "Blendable_M3_GravelGrassSat" in mat.name:
-        if "Sand_Blend" in N_SHADER.inputs:
-            N_SHADER.inputs["Sand_Blend"].default_value = 0.8
-
-def get_scalar_value(mat_props, s_param_name):
-    if "ScalarParameterValues" in mat_props:
-        for param in mat_props["ScalarParameterValues"]:
-            param_name = param['ParameterInfo']['Name'].lower()
-            if s_param_name.lower() in param_name:
-                return param["ParameterValue"]
-
-# SECTION Get Textures
-# NOTE: Might be tuned bit more
-
-
-def get_image(tex_name, tex_local_path):
-    img = bpy.data.images.get(tex_name + ".png")
-    if img is None:
-        img = bpy.data.images.load(tex_local_path)
-    return img
-
-
-def get_textures(settings: Settings, mat: bpy.types.Material, override: bool, mat_props: dict , shader, mapping):
-    blacklist_tex = [
+    if "TextureParameterValues" in mat_props:
+        pos = [-1000, 0]
+        index = 0
+        blacklist_tex = [
         "Albedo_DF",
         "MRA_MRA",
         "Normal_NM",
@@ -1015,200 +607,237 @@ def get_textures(settings: Settings, mat: bpy.types.Material, override: bool, ma
         "flatnormal",
         "flatwhite",
         "Basalt_0_M0_Edging_DF",
-    ]
-
-    nodes_texture = {}
-    if "TextureParameterValues" in mat_props:
-        pos = [-700, 0]
-        if override:
-            pos = [-1000, 0]
-        index = 0
+        ]
         for param in mat_props["TextureParameterValues"]:
-
-            tex_game_path = get_texture_path(s=param, f=settings.texture_format)
-            tex_local_path = settings.assets_path.joinpath(tex_game_path).__str__()
             param_name = param['ParameterInfo']['Name'].lower()
-            tex_name = Path(tex_local_path).stem
-
-            if "diffuse b low" not in param_name:
+            if param_name in N_SHADER.inputs:
+                tex_game_path = get_texture_path(s=param, f=settings.texture_format)
+                tex_local_path = settings.assets_path.joinpath(tex_game_path).__str__()
+                tex_name = Path(tex_local_path).stem
                 if Path(tex_local_path).exists() and tex_name not in blacklist_tex:
-                    pos[1] = index * -270
+                    tex_image_node = mat.node_tree.nodes.new('OctaneRGBImage')
+                    tex_image_node.image = get_image(tex_name, tex_local_path)
+                    tex_image_node.label = param_name
+                    pos[1] = index * -400
                     index += 1
-                    tex_image_node: bpy.types.Node
-                    tex_image_node = mat.node_tree.nodes.new('ShaderNodeTexImage')
-                    tex_image_node.image = get_image(tex_name, tex_local_path)  # bpy.data.images.load(tex_local_path)
-                    tex_image_node.image.alpha_mode = "CHANNEL_PACKED"
-                    tex_image_node.label = param["ParameterInfo"]["Name"]
                     tex_image_node.location[0] = pos[0]
                     tex_image_node.location[1] = pos[1]
+                    tex_image_node.inputs[2].default_value = 1.0
+                    if 'diffuse' in param_name: tex_image_node.inputs[2].default_value = 2.2
+                    link(tex_image_node.outputs[0], N_SHADER.inputs[param_name])
+                    #for textures that have alpha
+                    if f"{param_name}_alpha" in N_SHADER.inputs:
+                        tex_image_node_alpha = mat.node_tree.nodes.new('OctaneAlphaImage')
+                        tex_image_node_alpha.image = get_image(tex_name, tex_local_path)
+                        tex_image_node_alpha.label = f"{param_name}_alpha"
+                        link(tex_image_node_alpha.outputs[0], N_SHADER.inputs[ f"{param_name}_alpha"])
+                # LOGGING
+                TextureParameterValues.append(param_name)
+    #DEFAULT PARAMS
+    def set_default(name, value):
+        color_node = mat.node_tree.nodes.new(type="OctaneRGBColor")
+        color_node.a_value = value
+        color_node.label = name
+        link(color_node.outputs[0], N_SHADER.inputs[name])
+    default_params = [
+    ("diffuse", (1, 1, 1)),
+    ("diffuse a", (1, 1, 1)),
+    ("diffuse a_alpha", (1, 1, 1)),
+    ("diffuse b_alpha", (1, 1, 1)),
+    ("diffuse b", (1, 1, 1)),
+    ("diffusecolor", (1, 1, 1)),
+    ("layer a tint", (1, 1, 1)),
+    ("layer b tint", (1, 1, 1)),
+    ("tint", (1, 1, 1)),
+    ("mra", (0, 0.5, 1)),
+    ("mra a", (0, 0.5, 1)),
+    ("mra b", (0, 0.5, 1)),
+    ("normal", (0, 0, 1)),
+    ("metallic", (1, 1, 1)),
+    ("metallic b", (0, 0, 0)),
+    ("roughness max", (0.75, 0.75, 0.75)),
+    ("roughness min", (0.1, 0.1, 0.1)),
+    ("roughness mult", (1, 1, 1)),
+    ("roughness a max", (0.75, 0.75, 0.75)),
+    ("roughness a min", (0.1, 0.1, 0.1)),
+    ("roughness a mult", (1, 1, 1)),
+    ("roughness b max", (0.75, 0.75, 0.75)),
+    ("roughness b min", (0.1, 0.1, 0.1)),
+    ("roughness b mult", (1, 1, 1)),
+    ("blend roughness", (1, 1, 1)),
+    ("blend to flat mra", (0, 0, 0)),
+    ("use alpha as emissive", (0, 0, 0)),
+    ("emissive mult", (0, 0, 0)),
+    ("specular", (0.17, 0.17, 0.17)),
+    ("use vertex color", (1, 1, 1)),
+    ("blend tint only", (0, 0, 0)),
+    ("use diffuse b alpha", (0, 0, 0)),
+    ("blend to flat", (0, 0, 0)),
+    ("invert alpha (texture)", (0, 0, 0)),
+    ("invert vertex alpha (vertex color)", (0, 0, 0)),
+    ("use vertex alpha", (1, 1, 1)),
+    ("use 2 diffuse maps", (1, 1, 1)),
+    ("mask multiply", (1, 1, 1)),
+    ("mask blend mult", (1, 1, 1)),
+    ("mask blend power", (0.1, 0.1, 0.1)),
+    ("normal mask blend mult", (1, 1, 1)),
+    ("normal mask blend power", (0.1, 0.1, 0.1))
+    ]
+    for name, value in default_params:
+        if name in N_SHADER.inputs and N_SHADER.inputs[name].is_linked is False:
+            set_default(name, value)
+  
+def get_image(tex_name, tex_local_path):
+    img = bpy.data.images.get(tex_name + ".png")
+    if img is None:
+        img = bpy.data.images.load(tex_local_path)
+    return img
 
-                    if "diffuse" == param_name or "diffuse a" == param_name or "albedo" == param_name or "texture a" == param_name or "albedo a" == param_name:
-                        nodes_texture["diffuse"] = tex_image_node
-                    if "mra" == param_name or "mra a" == param_name:
-                        tex_image_node.image.colorspace_settings.name = "Non-Color"
-                        nodes_texture["mra"] = tex_image_node
-                    if "normal" == param_name or "texture a normal" == param_name or "normal a" == param_name:
-                        tex_image_node.image.colorspace_settings.name = "Non-Color"
-                        nodes_texture["normal"] = tex_image_node
-                    if "normal b" == param_name or "texture b normal" == param_name:
-                        tex_image_node.image.colorspace_settings.name = "Non-Color"
-                        nodes_texture["normal b"] = tex_image_node
-                    if "mask" in param_name or "rgba" in param_name:
-                        tex_image_node.image.colorspace_settings.name = "Raw"
-                        nodes_texture["mask"] = tex_image_node
+    # if "CachedReferencedTextures" in mat_props:
+    #     pos = [-1300, 0]
+    #     if override:
+    #         pos = [-1300, 0]
+    #     i = 0
+    #     textures = mat_props["CachedReferencedTextures"]
+    #     for index, param, in enumerate(textures):
+    #         if param is not None:
 
-                    else:
-                        nodes_texture[param_name] = tex_image_node
-                        # LOGGING
-                    TextureParameterValues.append(param['ParameterInfo']['Name'].lower())
+    #             texture_name_raw = param["ObjectName"].replace("Texture2D ", "")
+    #             if texture_name_raw not in blacklist_tex:
+    #                 texture_path_raw = param["ObjectPath"]
 
-    if "CachedReferencedTextures" in mat_props:
-        pos = [-1300, 0]
-        if override:
-            pos = [-1300, 0]
-        i = 0
-        textures = mat_props["CachedReferencedTextures"]
-        for index, param, in enumerate(textures):
-            if param is not None:
+    #                 tex_game_path = get_texture_path_yo(s=texture_path_raw, f=settings.texture_format)
+    #                 tex_local_path = settings.assets_path.joinpath(tex_game_path).__str__()
 
-                texture_name_raw = param["ObjectName"].replace("Texture2D ", "")
-                if texture_name_raw not in blacklist_tex:
-                    texture_path_raw = param["ObjectPath"]
+    #                 if Path(tex_local_path).exists():
+    #                     pos[1] = i * -270
+    #                     i += 1
+    #                     tex_image_node = mat.node_tree.nodes.new('OctaneRGBImage')
+    #                     tex_image_node.image = get_image(Path(tex_local_path).stem, tex_local_path)  # bpy.data.images.load(tex_local_path)
+    #                     tex_image_node.image.alpha_mode = "CHANNEL_PACKED"
+    #                     tex_image_node.label = texture_name_raw
+    #                     tex_image_node.location = [pos[0], pos[1]]
 
-                    tex_game_path = get_texture_path_yo(s=texture_path_raw, f=settings.texture_format)
-                    tex_local_path = settings.assets_path.joinpath(tex_game_path).__str__()
+    #                     if shader.node_tree == get_valorant_shader(group_name="VALORANT_Ventsmoke"):
+    #                         if texture_name_raw == "SmokeGradient_TFX":
+    #                             mat.node_tree.links.new(tex_image_node.outputs["Color"], shader.inputs["Smoke_Gradient"])
+    #                             tex_image_node.image.colorspace_settings.name = "Non-Color"
 
-                    if Path(tex_local_path).exists():
-                        pos[1] = i * -270
-                        i += 1
-                        tex_image_node = mat.node_tree.nodes.new('ShaderNodeTexImage')
-                        tex_image_node.image = get_image(Path(tex_local_path).stem, tex_local_path)  # bpy.data.images.load(tex_local_path)
-                        tex_image_node.image.alpha_mode = "CHANNEL_PACKED"
-                        tex_image_node.label = texture_name_raw
-                        tex_image_node.location = [pos[0], pos[1]]
+    #                         if texture_name_raw == "VentSmoke_Mask":
+    #                             mat.node_tree.links.new(mapping.outputs["Mapping"], tex_image_node.inputs["Vector"])
+    #                             mat.node_tree.links.new(tex_image_node.outputs["Color"], shader.inputs["Ventsmoke"])
+    #                             tex_image_node.image.colorspace_settings.name = "Non-Color"
 
-                        if shader.node_tree == get_valorant_shader(group_name="VALORANT_Ventsmoke"):
-                            if texture_name_raw == "SmokeGradient_TFX":
-                                mat.node_tree.links.new(tex_image_node.outputs["Color"], shader.inputs["Smoke_Gradient"])
-                                tex_image_node.image.colorspace_settings.name = "Non-Color"
+    #                     if shader.node_tree == get_valorant_shader(group_name="VALORANT_Waterfall"):
+    #                         if texture_name_raw == "Waterfall_Disolve_Blur_TFX":
+    #                             mat.node_tree.links.new(mapping.outputs["UV"], tex_image_node.inputs["Vector"])
+    #                             mat.node_tree.links.new(tex_image_node.outputs["Color"], shader.inputs["Waterfall_Disolve_Blur"])
 
-                            if texture_name_raw == "VentSmoke_Mask":
-                                mat.node_tree.links.new(mapping.outputs["Mapping"], tex_image_node.inputs["Vector"])
-                                mat.node_tree.links.new(tex_image_node.outputs["Color"], shader.inputs["Ventsmoke"])
-                                tex_image_node.image.colorspace_settings.name = "Non-Color"
+    #                         elif texture_name_raw == "Waterfall_Wave_TFX":
+    #                             mat.node_tree.links.new(mapping.outputs["UV"], tex_image_node.inputs["Vector"])
+    #                             mat.node_tree.links.new(tex_image_node.outputs["Color"], shader.inputs["Waterfall_Wave"])
 
-                        if shader.node_tree == get_valorant_shader(group_name="VALORANT_Waterfall"):
-                            if texture_name_raw == "Waterfall_Disolve_Blur_TFX":
-                                mat.node_tree.links.new(mapping.outputs["UV"], tex_image_node.inputs["Vector"])
-                                mat.node_tree.links.new(tex_image_node.outputs["Color"], shader.inputs["Waterfall_Disolve_Blur"])
+    #                         elif texture_name_raw == "Waterfall_BaseMask_TFX":
+    #                             mat.node_tree.links.new(mapping.outputs["UV"], tex_image_node.inputs["Vector"])
+    #                             mat.node_tree.links.new(tex_image_node.outputs["Color"], shader.inputs["Waterfall_BaseMask"])
 
-                            elif texture_name_raw == "Waterfall_Wave_TFX":
-                                mat.node_tree.links.new(mapping.outputs["UV"], tex_image_node.inputs["Vector"])
-                                mat.node_tree.links.new(tex_image_node.outputs["Color"], shader.inputs["Waterfall_Wave"])
+    #                         elif texture_name_raw == "Waterfall_Ripples_TFX":
+    #                             mat.node_tree.links.new(mapping.outputs["Vector"], tex_image_node.inputs["Vector"])
+    #                             mat.node_tree.links.new(tex_image_node.outputs["Color"], shader.inputs["Waterfall_Ripples"])
+    #                             tex_image_node.extension = "EXTEND"
 
-                            elif texture_name_raw == "Waterfall_BaseMask_TFX":
-                                mat.node_tree.links.new(mapping.outputs["UV"], tex_image_node.inputs["Vector"])
-                                mat.node_tree.links.new(tex_image_node.outputs["Color"], shader.inputs["Waterfall_BaseMask"])
+    #                     if texture_name_raw == "GlowA01_DIFF":
+    #                         if "Alpha" in shader.inputs:
+    #                             mat.node_tree.links.new(tex_image_node.outputs["Color"], shader.inputs["Alpha"])
+    #                             tex_image_node.extension = "EXTEND"
 
-                            elif texture_name_raw == "Waterfall_Ripples_TFX":
-                                mat.node_tree.links.new(mapping.outputs["Vector"], tex_image_node.inputs["Vector"])
-                                mat.node_tree.links.new(tex_image_node.outputs["Color"], shader.inputs["Waterfall_Ripples"])
-                                tex_image_node.extension = "EXTEND"
+    #                     if texture_name_raw == "GradientVertB_TEX":
+    #                         if "Gradient_Cache" in shader.inputs:
+    #                             mat.node_tree.links.new(tex_image_node.outputs["Color"], shader.inputs["Gradient_Cache"])
+    #                             tex_image_node.extension = "EXTEND"
 
-                        if texture_name_raw == "GlowA01_DIFF":
-                            if "Alpha" in shader.inputs:
-                                mat.node_tree.links.new(tex_image_node.outputs["Color"], shader.inputs["Alpha"])
-                                tex_image_node.extension = "EXTEND"
+    #                     if "_DF" in texture_name_raw:
+    #                         nodes_texture["diffuse"] = tex_image_node
 
-                        if texture_name_raw == "GradientVertB_TEX":
-                            if "Gradient_Cache" in shader.inputs:
-                                mat.node_tree.links.new(tex_image_node.outputs["Color"], shader.inputs["Gradient_Cache"])
-                                tex_image_node.extension = "EXTEND"
+    #                     else:
+    #                         nodes_texture[texture_name_raw] = tex_image_node
 
-                        if "_DF" in texture_name_raw:
-                            nodes_texture["diffuse"] = tex_image_node
+    #                     TextureParameterValues.append(texture_name_raw.lower())
 
-                        else:
-                            nodes_texture[texture_name_raw] = tex_image_node
+    # elif "CachedExpressionData"in mat_props:
+    #     pos = [-1300, 0]
+    #     i = 0
+    #     if "ReferencedTextures" in mat_props["CachedExpressionData"]:
+    #         textures = mat_props["CachedExpressionData"]["ReferencedTextures"] 
+    #         for index, param, in enumerate(textures):
+    #             if param is not None:
 
-                        TextureParameterValues.append(texture_name_raw.lower())
+    #                 texture_name_raw = param["ObjectName"].replace("Texture2D ", "")
+    #                 if texture_name_raw not in blacklist_tex:
+    #                     texture_path_raw = param["ObjectPath"]
 
-    elif "CachedExpressionData"in mat_props:
-        pos = [-1300, 0]
-        i = 0
-        if "ReferencedTextures" in mat_props["CachedExpressionData"]:
-            textures = mat_props["CachedExpressionData"]["ReferencedTextures"] 
-            for index, param, in enumerate(textures):
-                if param is not None:
+    #                     tex_game_path = get_texture_path_yo(s=texture_path_raw, f=settings.texture_format)
+    #                     tex_local_path = settings.assets_path.joinpath(tex_game_path).__str__()
 
-                    texture_name_raw = param["ObjectName"].replace("Texture2D ", "")
-                    if texture_name_raw not in blacklist_tex:
-                        texture_path_raw = param["ObjectPath"]
+    #                     if Path(tex_local_path).exists():
+    #                         pos[1] = i * -270
+    #                         i += 1
+    #                         tex_image_node = mat.node_tree.nodes.new('OctaneRGBImage')
+    #                         tex_image_node.image = get_image(Path(tex_local_path).stem, tex_local_path)
+    #                         tex_image_node.image.alpha_mode = "CHANNEL_PACKED"
+    #                         tex_image_node.label = texture_name_raw
+    #                         tex_image_node.location = [pos[0], pos[1]]
 
-                        tex_game_path = get_texture_path_yo(s=texture_path_raw, f=settings.texture_format)
-                        tex_local_path = settings.assets_path.joinpath(tex_game_path).__str__()
+    #                         if "_mk" in texture_name_raw:
+    #                             if "MRA" in shader.inputs:
+    #                                 mat.node_tree.links.new(tex_image_node.outputs["Color"], shader.inputs["MRA"])
+    #                                 shader.inputs["Metallic"].default_value = -1
+    #                                 shader.inputs["Roughness"].default_value = -1
+    #                                 shader.inputs["AO Strength"].default_value = 0.15
 
-                        if Path(tex_local_path).exists():
-                            pos[1] = i * -270
-                            i += 1
-                            tex_image_node = mat.node_tree.nodes.new('ShaderNodeTexImage')
-                            tex_image_node.image = get_image(Path(tex_local_path).stem, tex_local_path)
-                            tex_image_node.image.alpha_mode = "CHANNEL_PACKED"
-                            tex_image_node.label = texture_name_raw
-                            tex_image_node.location = [pos[0], pos[1]]
+    #                         if "_DF" in texture_name_raw:
+    #                             if "DF" in shader.inputs:
+    #                                 mat.node_tree.links.new(tex_image_node.outputs["Color"], shader.inputs["DF"])
+    #                                 mat.node_tree.links.new(tex_image_node.outputs["Alpha"], shader.inputs["Alpha"])
+    #                                 mat.node_tree.links.new(tex_image_node.outputs["Alpha"], shader.inputs["DF Alpha"])
 
-                            if "_mk" in texture_name_raw:
-                                if "MRA" in shader.inputs:
-                                    mat.node_tree.links.new(tex_image_node.outputs["Color"], shader.inputs["MRA"])
-                                    shader.inputs["Metallic"].default_value = -1
-                                    shader.inputs["Roughness"].default_value = -1
-                                    shader.inputs["AO Strength"].default_value = 0.15
+    #                         if "_NM" in texture_name_raw:
+    #                             if "NM" in shader.inputs:
+    #                                 mat.node_tree.links.new(tex_image_node.outputs["Color"], shader.inputs["NM"])
 
-                            if "_DF" in texture_name_raw:
-                                if "DF" in shader.inputs:
-                                    mat.node_tree.links.new(tex_image_node.outputs["Color"], shader.inputs["DF"])
-                                    mat.node_tree.links.new(tex_image_node.outputs["Alpha"], shader.inputs["Alpha"])
-                                    mat.node_tree.links.new(tex_image_node.outputs["Alpha"], shader.inputs["DF Alpha"])
+    #                         if "_MRA" in texture_name_raw:
+    #                             if "MRA" in shader.inputs:
+    #                                 mat.node_tree.links.new(tex_image_node.outputs["Color"], shader.inputs["MRA"])
 
-                            if "_NM" in texture_name_raw:
-                                if "NM" in shader.inputs:
-                                    mat.node_tree.links.new(tex_image_node.outputs["Color"], shader.inputs["NM"])
+                            # if "T_CGSkies_0091_ascent_DF" in texture_name_raw:
+                            #     if "Light" in shader.inputs:
+                            #         mat.node_tree.links.new(tex_image_node.outputs["Color"], shader.inputs["Light"])
 
-                            if "_MRA" in texture_name_raw:
-                                if "MRA" in shader.inputs:
-                                    mat.node_tree.links.new(tex_image_node.outputs["Color"], shader.inputs["MRA"])
+                            #         world_nodes = bpy.context.scene.world.node_tree.nodes
+                            #         world_nodes.clear()
 
-                            if "T_CGSkies_0091_ascent_DF" in texture_name_raw:
-                                if "Light" in shader.inputs:
-                                    mat.node_tree.links.new(tex_image_node.outputs["Color"], shader.inputs["Light"])
+                            #         node_background = world_nodes.new(type='ShaderNodeBackground')
+                            #         node_output = world_nodes.new(type='ShaderNodeOutputWorld')   
+                            #         node_output.location = 200,0
 
-                                    world_nodes = bpy.context.scene.world.node_tree.nodes
-                                    world_nodes.clear()
-
-                                    node_background = world_nodes.new(type='ShaderNodeBackground')
-                                    node_output = world_nodes.new(type='ShaderNodeOutputWorld')   
-                                    node_output.location = 200,0
-
-                                    node_environment = world_nodes.new('ShaderNodeTexEnvironment')
-                                    node_environment.image = bpy.data.images.load(tex_local_path)
-                                    node_environment.label = texture_name_raw
-                                    node_environment.location = -300,0
+                            #         node_environment = world_nodes.new('ShaderNodeTexEnvironment')
+                            #         node_environment.image = bpy.data.images.load(tex_local_path)
+                            #         node_environment.label = texture_name_raw
+                            #         node_environment.location = -300,0
                         
-                                    links = bpy.context.scene.world.node_tree.links
-                                    links.new(node_environment.outputs["Color"], node_background.inputs["Color"])
-                                    links.new(node_background.outputs["Background"], node_output.inputs["Surface"])
+                            #         links = bpy.context.scene.world.node_tree.links
+                            #         links.new(node_environment.outputs["Color"], node_background.inputs["Color"])
+                            #         links.new(node_background.outputs["Background"], node_output.inputs["Surface"])
 
-                            if "Skybox" in texture_name_raw:
-                                if "Background" in shader.inputs:
-                                    mat.node_tree.links.new(tex_image_node.outputs["Color"], shader.inputs["Background"])
+                            # if "Skybox" in texture_name_raw:
+                            #     if "Background" in shader.inputs:
+                            #         mat.node_tree.links.new(tex_image_node.outputs["Color"], shader.inputs["Background"])
 
-
-    return nodes_texture
+    #return nodes_texture
 # !SECTION
 
 
 # ANCHOR : IMPORTERS
-
 
 def filter_objects(umap_DATA, lights: bool = False) -> list:
 
@@ -1564,7 +1193,6 @@ def import_map(addon_prefs):
         umap_json_paths = []
         for umap in SELECTIVE_UMAP:
             umap_json_paths.append(settings.selected_map.umaps_path.joinpath(f"{umap}.json"))
-
 
 
     # Process each umaps

@@ -142,6 +142,12 @@ def get_rgb(pv: dict) -> tuple:
         pv["B"],
         pv["A"])
 
+def get_rgb_no_alpha(pv: dict) -> tuple:
+    return (
+        pv["R"],
+        pv["G"],
+        pv["B"])
+
 
 def get_texture_path(s: dict, f: str):
     a = Path(os.path.splitext(s["ParameterValue"]["ObjectPath"])[0].strip("/")).__str__()
